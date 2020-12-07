@@ -1,0 +1,14 @@
+<iframe id="myIframe" width="560" height="315" src="https://youtube.shapedbyiris.com/embed/yGWIjV7BNEw" frameborder="0" allowfullscreen></iframe>
+<input id="myCheckbox" type="checkbox" />
+<script>
+  const checkbox = document.getElementById('myCheckbox');
+  const iframe = document.getElementById('myIframe').contentWindow;
+
+  checkbox.addEventListener('change', event => {
+    iframe.postMessage({
+      type: 'toggle',
+      active: event.target.checked
+    }, 'https://youtube.shapedbyiris.com/embed/yGWIjV7BNEw');
+  });
+</script>
+
