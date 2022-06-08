@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>3D dialog test</title>
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+<!--
+varying vec2 vUV;
+
+void main() {
+  vec3 innerCol = vec4 (0.0, 0.0, 0.0, 0.0);
+  vec3 strokeCol;
+  float radius = 1.0;
+  float stroke = 0.2;
+
+  float border = (radius - stroke/2.0)/(stroke/2.0+radius);
+  float d = distance(vUV, vec2(0.5, 0.5));
+
+  if( d> border && d < 1.0) {
+    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+  }
+  else {
+    discard;
+  }
+}
+-->
+<style>
+  body {
+    background: #000;
+    color: #ccc;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    font-family: georgia;
+    font-size:1.1em;
+  }
+
+  #left_hud {
+    pointer-events: none;
+    position: absolute;
+    z-index: 3;
+    left: 0;
+    width: 45%;
+    height: 100%;
+    margin-left: 2.5%;
+  }
+
+  #right_hud {
+    pointer-events: none;
+    position: absolute;
+    z-index: 3;
+    right: 0;
+    width: 45%;
+    height: 100%;
+    margin-right: 2.5%;
+  }
+
+  #guide_circle_left {
+    pointer-events: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    width: 2.5vw;
+    height: 2.5vw;
+    border-radius: 100%;
+  }
+
+  .other-ball {
+    width: 1px;
+    height: 1px;
+    border-radius: 50%;
+    background: #fff;
+    position: absolute;
+    z-index: 2;
+    transform: translate(-50%, -50%);
+    top:50%;
+    left:50%;
+  }
+
+  #guide_circle_right {
+    pointer-events: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    width: 2.5vw;
+    height: 2.5vw;
+    border-radius: 100%;
+  }
+</style>
+<style>
+  #testDialog {
+    border-radius: 10px;
+    border:3px solid #888;
+    background-color:#444;
+    color: #fff;
+    font-size:14px;
+    font-family: Helvetica;
+    position:absolute;
+    top:0;
+    left:0;
+    margin:0;
+    padding: 0 0.8em;
+    transform-origin: top left;
+  }
+
+  #testDialog h2 {
+    margin: 0.8em 0;
+    text-shadow: 0px 1px #222;
+  }
+
+  #testDialog p, #testDialog div.section {
+    padding: 0;
+    margin:0.8em 0;
+    vertical-align:middle;
+  }
+
+  #testDialog .button {
+    display: inline-block;
+    zoom: 1; /* zoom and *display = ie7 hack for display:inline-block */
+    vertical-align: baseline;
+    outline: none;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    font: 14px/100% Arial, Helvetica, sans-serif;
+    padding: .5em 2em .55em;
+    margin:0;
+    text-shadow: 0 1px 1px rgba(0,0,0,.3);
+    -webkit-border-radius: .5em;
+    -moz-border-radius: .5em;
+    border-radius: .5em;
+    -webkit-box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    -moz-box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    box-shadow: 0 1px 2px rgba(0,0,0,.2);
+
+    color: #d7d7d7;
+    border: solid 1px #333;
+    background: #333;
+    font-weight: bold;
+    background: -webkit-gradient(linear, left top, left bottom, from(#666), to(#000));
+    background: -moz-linear-gradient(top, #666, #000);
+  }
+
+  #testDialog.hover .button {
+    background: #000;
+    background: -webkit-gradient(linear, left top, left bottom, from(#444), to(#000));
+    background: -moz-linear-gradient(top,  #444,  #000);
+  }
+
+  #testDialog hr {
+    border: none;
+    background: #333;
+    height: 2px;
+    margin: 0.8em 0;
+    box-shadow: 1px 1px 1px 1px #555;
+  }
+
+  #testDialog .sunk {
+    background: #333;
+    color: #eee;
+    border-radius: 0.6em;
+    box-shadow: inset 0px 2px 10px 0px rgba(0, 0, 0, 0.6);
+    padding: 0.5em;
+    text-shadow: 0px 1px #222;
+    margin: 0.8em 0;
+    overflow:hidden;
+  }
+
+  #testDialog.active .button {
+    color: #666;
+    background: -webkit-gradient(linear, left top, left bottom, from(#000), to(#444));
+    background: -moz-linear-gradient(top,  #000,  #444);
+  }
+</style>
+</head>
+
+<body>
+<div id="container"></div>
+<!-- <div id="infoText" style="position:absolute; white-space: pre; top: 0; left: 0; background-color: #fff; color: #000; font-size: 16px; font-family: Helvetica;padding: 5px">text output</div> -->
+<div id="testDialog">
+  <div class="section"><div class="button">Button 1</div> <div class="button">Button 2</div></div>
+  <hr>
+  <div class="sunk">Sunken text</div>
+  <h2>Some text</h2>
+  <p>some other text</p>
+</div>
+<canvas id="canvas2"></canvas>
+<canvas id="canvas3"></canvas>
+<canvas id="canvas4"></canvas>
+<canvas id="canvas5"></canvas>
+
+<script src="../build/three.js"></script>
+<script src="js/Octree.js"></script>
+<script src="js/controls/DeviceOrientationControls.js"></script>
+<script src="js/controls/PointerLockControls.js"></script>
+<script src="js/loaders/SVGLoader.js"></script>
+
+<script src="js/renderers/Projector.js"></script>
+<script src="js/shaders/NormalMapShader.js"></script>
+<script src="js/ShaderTerrain.js"></script>
+
+<script src="js/Detector.js"></script>
+<script src="js/postprocessing/EffectComposer.js"></script>
+<script src="js/postprocessing/RenderPass.js"></script>
+<script src="js/postprocessing/MaskPass.js"></script>
+<script src="js/postprocessing/ShaderPass.js"></script>
+<script src="js/shaders/CopyShader.js"></script>
+
+<script>
+//Edge Blob polyfill https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toBlob
+if (!HTMLCanvasElement.prototype.toBlob) {
+   Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+     value: function (callback, type, quality) {
+       var canvas = this;
+       setTimeout(function() {
+         var binStr = atob( canvas.toDataURL(type, quality).split(',')[1] ),
+         len = binStr.length,
+         arr = new Uint8Array(len);
+
+         for (var i = 0; i < len; i++ ) {
+            arr[i] = binStr.charCodeAt(i);
+         }
+
+         callback( new Blob( [arr], {type: type || 'image/png'} ) );
+       });
+     }
+  });
+}
+
+new (function() {
+  'use strict';
+
+  if(!Detector.webgl) {
+    Detector.addGetWebGLMessage();
+  }
+
+  var
+    renderer,
+    scene,
+    octree,
+    dialog1,
+    camera,
+    stereoCamera,
+    composer,
+    renderPass,
+    effect,
+    updateDistortionEffect,
+    opacityUniforms = [1.0, 0.0],
+    material,
+
+    usingPhone = false,
+    yawObject,
+    controls,
+    infoText = document.getElementById('infoText'),
+    reticule,
+    reticuleAngle,
+
+    elemss,
+
+    clock = new THREE.Clock(),
+    prevTime = performance.now(),
+    xthing,
+    ything,
+
+    firstRender = true,
+    notInited = true,
+    SCREEN_WIDTH = window.innerWidth,
+    SCREEN_HEIGHT = window.innerHeight,
+
+    up = new THREE.Vector3(0, 1, 0),
+    down = new THREE.Vector3(0, -1, 0),
+    minusZed = new THREE.Vector3(0, 0, -1),
+    allZeros = new THREE.Vector3(0, 0, 0),
+    halfPi = Math.PI/2,
+    minusHalfPi = - halfPi,
+    log4 = Math.log(4),
+    dwidth = 0,
+    dheight = 0,
+
+    //stuff to do with the camera offset and rotation
+    foobar,
+    dangle = 0,
+    dangleChange = 0,
+    recenterTimeout,
+    recenterState = 0,
+
+    raycaster = new THREE.Raycaster(),
+    velocity = new THREE.Vector3(),
+    direction = new THREE.Vector3(),
+
+    directionalLight,
+    pointLight,
+
+    arrowObjs = [],
+    selectableObjs = [],
+    moveRight = false,
+    moveLeft = false,
+    moveForward = false,
+    moveBackward = false,
+    cameraOrtho2,
+
+    walkSpeed = 0.075,
+
+    skyBox = false,
+
+    docEl,
+
+    xxx;
+
+  function init() {
+    initBoilerplate();
+
+    scene.fog = new THREE.Fog(0x9fa2ee, 0, 1550);
+    scene.add(new THREE.AmbientLight(0x111111));
+
+    directionalLight = new THREE.DirectionalLight(0xffffff, 4);
+    directionalLight.position.set(500, 2000, 0);
+    scene.add(directionalLight);
+
+    pointLight = new THREE.PointLight(0xff7f00, 2);
+    pointLight.position.set(0, 0, 0);
+    scene.add(pointLight);
+
+    initSimpleSkybox();
+    addReticule();
+    addDialog('<div><p>Hello, World!</p></div>');
+    initVRControls();
+  }
+
+  function positionReticule(intersection) {
+    var dist = 3;
+    if(intersection) {
+      dist = intersection.distance;
+
+      reticule.position.copy(intersection.point);
+    }
+    else {
+      var vector = minusZed.clone();
+
+      var obj = usingPhone ? camera : controls.getObject();
+
+      if(usingPhone) {
+        vector
+          .applyQuaternion(camera.quaternion)
+          .applyAxisAngle(up, -(foobar+dangle)/2);
+      }
+      else {
+        vector
+          .applyQuaternion(obj.children[0].quaternion)
+          .applyQuaternion(obj.quaternion)
+      }
+
+      reticule.position.copy(camera.position).addScaledVector(vector, dist);
+    }
+    dist/=50;
+
+    reticule.lookAt(camera.position);
+    reticule.scale.set(dist, dist, dist);
+    reticule.updateMatrix();
+  }
+
+  function getIntersections(objects) {
+    var vector = minusZed.clone();
+
+    var obj = usingPhone ? camera : controls.getObject();
+
+    if(usingPhone) {
+      vector
+        .applyQuaternion(camera.quaternion)
+        .applyAxisAngle(up, -(foobar+dangle)/2);
+    }
+    else {
+      vector
+        .applyQuaternion(obj.children[0].quaternion)
+        .applyQuaternion(obj.quaternion)
+    }
+
+    /*infoText.textContent=
+      stfy(obj.position)+'\n'+
+      stfy(vector);*/
+
+    raycaster.set(obj.position, vector);
+
+    return raycaster.intersectObjects(objects, true);
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+
+    var time = performance.now();
+    var delta = (time - prevTime) / 1000;
+    var obj = usingPhone ? camera : controls.getObject();
+
+    if(firstRender) {
+      if(true /* everything in the scene has inited */) {
+        foobar = ((window.orientation < 1) ? minusHalfPi : halfPi);
+
+        firstRender = false;
+
+        obj.position.set(0, 13.5, 0);
+        obj.rotation.y = halfPi/2;
+      }
+      else {
+        prevTime = time;
+
+        return;
+      }
+    }
+
+    if(obj) {
+      if(usingPhone) {
+        controls.update();
+
+        var rotation = new THREE.Euler().setFromQuaternion(yawObject.quaternion, 'XYZ');
+
+        camera.rotation.set(rotation.x, rotation.y, rotation.z);
+        camera.rotateOnAxis(up.clone().applyQuaternion(yawObject.quaternion.conjugate()), foobar+dangle);
+      }
+
+      var intersects2 = getIntersections([dialog1], true);
+
+      stereoCamera.update(camera);
+
+      var intersects = getIntersections(selectableObjs);
+
+      var a = intersects.length ? intersects[0].object.parent.name : -1;
+
+      switch(a) {
+        case 0:
+          moveForward = true;
+          moveLeft = moveRight = moveBackward = false;
+        break;
+
+        case 1:
+          moveBackward = true;
+          moveLeft = moveRight = moveForward = false;
+        break;
+
+        case 2:
+          moveLeft = true;
+          moveRight = moveForward = moveBackward = false;
+        break;
+
+        case 3:
+          moveRight = true;
+          moveLeft = moveForward = moveBackward = false;
+        break;
+
+        default:
+          moveRight =
+          moveLeft =
+          moveForward =
+          moveBackward =
+            false;
+        break;
+      }
+
+      switch(a) {
+        case 4:
+          dangleChange = Math.min(0.015, dangleChange + 0.0025 * delta);
+          dangle += dangleChange;
+
+          if(!usingPhone) {
+            obj.rotation.y += dangleChange;
+          }
+        break;
+
+        case 5:
+          dangleChange = Math.min(0.015, dangleChange + 0.0025 * delta);
+          dangle -= dangleChange;
+
+          if(!usingPhone) {
+            obj.rotation.y -= dangleChange;
+          }
+        break;
+
+        default:
+          dangleChange = 0;
+        break;
+      }
+
+      if(a == 6) {
+        if(recenterState == 0) {
+          recenterTimeout = setTimeout(reCenter1, 2000);
+          recenterState = 1;
+        }
+      }
+      else {
+        if(recenterState == 1) {
+          clearTimeout(recenterTimeout);
+          recenterState = 0;
+        }
+      }
+
+      direction.x = Number(moveLeft) - Number(moveRight);
+      direction.y = 0;
+      direction.z = Number(moveForward) - Number(moveBackward);
+
+      direction.normalize().applyAxisAngle(up, dangle);
+
+      if(a> -1 && a < 4) {
+        velocity.z += (direction.z * 0.15 * delta);
+        velocity.x += (direction.x * 0.15 * delta);
+
+        velocity.clampLength(0, walkSpeed);
+      }
+      else {
+        velocity.x = 0;
+        velocity.z = 0;
+      }
+
+      if(notInited || (a > -1 && a < 4)) {
+        cameraOrtho2.x -= velocity.x;
+        cameraOrtho2.z -= velocity.z;
+
+        if(notInited) {
+          octree.update();
+        }
+
+        // Set the raycaster position
+        raycaster.set(
+            cameraOrtho2,
+            down
+          );
+
+        raycaster.ray.far = 2001;
+
+        var octreeObjects = octree.search(
+            raycaster.ray.origin,
+            raycaster.ray.far,
+            true,
+            raycaster.ray.direction
+          );
+
+        intersects = raycaster.intersectOctreeObjects(octreeObjects);
+
+        if(intersects.length) {
+          obj.position.set(
+            obj.position.x - velocity.x,
+            2013 - intersects.reduce((accumulator, currentValue) => {
+                return accumulator ?
+                  Math.max(accumulator, currentValue.distance) :
+                  currentValue.distance
+              }, null),
+            obj.position.z - velocity.z
+          );
+
+          notInited = false;
+        }
+        else {
+           obj.position.set(
+            0,0,0
+          );
+          notInited = false;
+        }
+
+        cameraOrtho2.x = obj.position.x;
+        cameraOrtho2.z = obj.position.z;
+      }
+
+      for(var i = 0; i < 14; i++) {
+        if(arrowObjs[i]) {
+          if(i > 6) {
+            for(var j = arrowObjs[i].children.length-1; j > -1; j--) {
+              arrowObjs[i].children[j].material.opacity = a === i-7 ? .5: 0.15;
+            }
+          }
+
+          arrowObjs[i].position.x = obj.position.x;
+          arrowObjs[i].position.y = obj.position.y - 12;
+          arrowObjs[i].position.z = obj.position.z - 10;
+
+          var thoob = new THREE.Vector3(
+              arrowObjs[i].position.x,
+              arrowObjs[i].position.y,
+              arrowObjs[i].position.z + 10
+            );
+
+          arrowObjs[i].position.sub(thoob); // remove the offset
+          arrowObjs[i].position.applyAxisAngle(up, dangle);
+          arrowObjs[i].rotation.z = dangle;
+          arrowObjs[i].position.add(thoob); // remove the offset
+        }
+      }
+
+      skyBox.position.x = obj.position.x;
+      skyBox.position.y = obj.position.y;
+      skyBox.position.z = obj.position.z;
+
+
+      var ljsd = intersects2.length?intersects2[0].uv:null;
+
+
+      var matchUv = {};
+      if(ljsd) {
+        matchUv = {
+          x: ljsd.x*(dwidth/xthing),
+          y: (1- ljsd.y)*(dheight/ything),
+        }
+      }
+
+      if(intersects2.length) {
+        var index = findFirstMatch(elemss, matchUv.x, matchUv.y);
+      }
+      else {
+        index = null;
+      }
+
+      for(var i = opacityUniforms.length -1; i > -1; i--) {
+        opacityUniforms[i] = index && i == index.zOrder ?
+          Math.min(1, opacityUniforms[index.zOrder] + 6 * delta) :
+          Math.max(opacityUniforms[i] - 6 * delta, 0);
+      }
+
+      /*
+      infoText.textContent=
+        stfy(ljsd)+'\n'+
+        "matchUv:"+stfy(matchUv)+'\n'+
+        stfy(index)+'\n'+
+        stfy(opacityUniforms);
+      */
+
+      renderer.setScissorTest(true);
+
+      renderer.setScissor(0, 0, SCREEN_WIDTH / 2, SCREEN_HEIGHT);
+      renderer.setViewport(0, 0, SCREEN_WIDTH / 2, SCREEN_HEIGHT);
+      renderPass.camera = stereoCamera.cameraL; //note: bending rule by setting RenderPass.camera directly without set/get methods
+      composer.render();
+
+      renderer.setScissor(SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2, SCREEN_WIDTH);
+      renderer.setViewport(SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2, SCREEN_HEIGHT);
+      renderPass.camera = stereoCamera.cameraR; //note: bending rule by setting RenderPass.camera directly without set/get methods
+      composer.render();
+
+      renderer.setScissorTest(false);
+      
+      positionReticule(intersects.length?intersects[0]:null);
+
+    }
+
+    prevTime = time;
+  }
+
+  function initBoilerplate() {
+    Array.prototype.forEach.call(document.getElementsByClassName('other-ball'), item => {
+      item.style.backgroundColor = '#ffff';
+    });
+
+    docEl = window.document.documentElement;
+    docEl.addEventListener("click", function() {
+      fullscreen(docEl);
+    }, false);
+
+    renderer = new THREE.WebGLRenderer({ antialiasing: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+    document.getElementById('container').appendChild(renderer.domElement);
+
+    octree = new THREE.Octree({
+      // uncomment below to see the octree (may kill the fps)
+      //scene: scene,
+      // when undeferred = true, objects are inserted immediately
+      // instead of being deferred until next octree.update() call
+      // this may decrease performance as it forces a matrix update
+      undeferred: false,
+      // set the max depth of tree
+      depthMax: Infinity,
+      // max number of objects before nodes split or merge
+      objectsThreshold: 8,
+      // percent between 0 and 1 that nodes will overlap each other
+      // helps insert objects that lie over more than one node
+      overlapPct: 0.15
+    });
+
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(100, SCREEN_WIDTH / SCREEN_HEIGHT, 1, 1000000);
+    scene.add(camera);
+
+    stereoCamera = new THREE.StereoCamera();
+    stereoCamera.eyeSep = 0.07;
+
+    composer = new THREE.EffectComposer(renderer);
+    renderPass = new THREE.RenderPass(scene, stereoCamera.cameraL);
+    composer.addPass(renderPass);
+
+    effect = new THREE.ShaderPass(getDistortionShaderDefinition());
+    composer.addPass(effect);
+    effect.renderToScreen = true;
+
+    updateDistortionEffect = setupDistortionEffectAndGUI(effect);
+    updateDistortionEffect(camera);
+
+    controls = new THREE.PointerLockControls(camera);
+    scene.add(controls.getObject());
+
+    window.addEventListener('deviceorientation', setOrientationControls, true);
+
+    onWindowResize();
+
+    window.addEventListener('resize', onWindowResize, false);
+    document.addEventListener('mousedown', onMouseDown, false);
+    document.addEventListener('mouseup', onMouseUp, false);
+  }
+
+  function fullscreen(container) {
+    if(container.requestFullscreen) {
+      container.requestFullscreen();
+    }
+    else if(container.msRequestFullscreen) {
+      container.msRequestFullscreen();
+    }
+    else if(container.mozRequestFullScreen) {
+      container.mozRequestFullScreen();
+    }
+    else if(container.webkitRequestFullscreen) {
+      container.webkitRequestFullscreen();
+    }
+  }
+
+  function getDistortionShaderDefinition() {
+    return {
+      uniforms: {
+        tDiffuse: {
+          type: "t",
+          value: null
+        },
+        strength: {
+          type: "f",
+          value: 0
+        },
+        height: {
+          type: "f",
+          value: 1
+        },
+        aspectRatio: {
+          type: "f",
+          value: 1
+        },
+        cylindricalRatio: {
+          type: "f",
+          value: 1
+        }
+      },
+
+      vertexShader: `
+        uniform float strength;          // s: 0 = perspective, 1 = stereographic
+        uniform float height;            // h: tan(verticalFOVInRadians / 2)
+        uniform float aspectRatio;       // a: screenWidth / screenHeight
+        uniform float cylindricalRatio;  // c: cylindrical distortion ratio. 1 = spherical
+
+        varying vec3 vUV;                // output to interpolate over screen
+        varying vec2 vUVDot;             // output to interpolate over screen
+
+        void main() {
+          gl_Position = projectionMatrix * (modelViewMatrix * vec4(position, 1.0));
+
+          float scaledHeight = strength * height;
+          float cylAspectRatio = aspectRatio * cylindricalRatio;
+          float aspectDiagSq = aspectRatio * aspectRatio + 1.0;
+          float diagSq = scaledHeight * scaledHeight * aspectDiagSq;
+          vec2 signedUV = (2.0 * uv + vec2(-1.0, -1.0));
+
+          float z = 0.5 * sqrt(diagSq + 1.0) + 0.5;
+          float ny = (z - 1.0) / (cylAspectRatio * cylAspectRatio + 1.0);
+
+          vUVDot = sqrt(ny) * vec2(cylAspectRatio, 1.0) * signedUV;
+          vUV = vec3(0.5, 0.5, 1.0) * z + vec3(-0.5, -0.5, 0.0);
+          vUV.xy += uv;
+        }
+      `,
+
+      fragmentShader: `
+        uniform sampler2D tDiffuse;      // sampler of rendered scene's render target
+        varying vec3 vUV;                // interpolated vertex output data
+        varying vec2 vUVDot;             // interpolated vertex output data
+
+        void main() {
+          vec3 uv = dot(vUVDot, vUVDot) * vec3(-0.5, -0.5, -1.0) + vUV;
+          gl_FragColor = texture2DProj(tDiffuse, uv);
+        }
+      `
+    };
+  }
+
+  function stfy(x) {
+    return JSON.stringify(x, null, 2);
+  }
+
+  function getVertexShader() { return `
+    varying vec2 vUv;
+
+    void main(void) {
+      vUv = uv;
+
+      gl_Position = projectionMatrix *
+        modelViewMatrix *
+        vec4(position, 1.0);
+    }
+  `}
+
+  function getReticuleFragmentShader() { return `
+    varying vec2 vUv;
+    uniform float reticuleAngle[1];
+
+    void main() {
+      float d = distance(vUv, vec2(0.5, 0.5));
+
+      if( d> 0.41 && d <= 0.49 || d < 0.03) {
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+      }
+    }
+  `}
+
+
+  function getFragmentShader(numButtons) { return `
+    varying vec2 vUv;
+    uniform float opacities[${numButtons}];
+    uniform int activeButtons[${numButtons}];
+    uniform sampler2D colourMask;
+    uniform sampler2D defaultTexture;
+    uniform sampler2D hoverTexture;
+    uniform sampler2D activeTexture;
+
+    void main(void) {
+      vec4 texture = texture2D(colourMask, vUv);
+      vec4 bytes = vec4(texture * 256.0);
+      vec4 defaultSample = texture2D(defaultTexture, vUv);
+      vec4 hoverSample = texture2D(hoverTexture, vUv);
+
+      int myIndex = int(
+        (bytes.r * 65536.0) +
+        (bytes.g * 256.0) +
+        bytes.b)/10;
+
+      for(int i=0; i<${numButtons}; i++) {
+        if(myIndex == i) {
+          if(activeButtons[i] == 1) {
+            gl_FragColor = texture2D(activeTexture, vUv);
+            return;
+          }
+          else {
+            if(opacities[i] > 0.01) {
+              gl_FragColor =
+                defaultSample * (1.0 - opacities[i]) +
+                hoverSample * (opacities[i]);
+              return;
+            }
+          }
+        }
+      }
+
+      gl_FragColor = defaultSample;
+    }
+  `}
+
+  function setupDistortionEffectAndGUI(effect) {
+    var
+      guiParameters = {
+        horizontalFOV:    75,
+        strength:         0.56,
+        cylindricalRatio: 1.7,
+      },
+      height;
+
+    return camera => {
+      height = Math.tan(THREE.Math.degToRad(guiParameters.horizontalFOV) / 2) / camera.aspect;
+
+      camera.fov = Math.atan(height) * 2 * 180 / 3.1415926535;
+      camera.updateProjectionMatrix();
+
+      effect.uniforms[ "strength" ].value = guiParameters.strength;
+      effect.uniforms[ "height" ].value = height;
+      effect.uniforms[ "aspectRatio" ].value = camera.aspect;
+      effect.uniforms[ "cylindricalRatio" ].value = guiParameters.cylindricalRatio;
+    };
+  }
+
+  function setOrientationControls(e) {
+    window.removeEventListener('deviceorientation', setOrientationControls, true);
+
+    if(!e.alpha) {
+      return;
+    }
+
+    usingPhone = true;
+
+    yawObject = new THREE.Object3D();
+
+    controls = new THREE.DeviceOrientationControls(yawObject);
+  }
+
+  function onWindowResize(event) {
+    SCREEN_WIDTH = window.innerWidth;
+    SCREEN_HEIGHT = window.innerHeight;
+
+    camera.aspect = (SCREEN_WIDTH/2) / SCREEN_HEIGHT;
+
+    renderer.setSize(SCREEN_WIDTH, SCREEN_HEIGHT);
+    composer.setSize(SCREEN_WIDTH*3, SCREEN_HEIGHT*3);
+
+    updateDistortionEffect(stereoCamera.cameraL);
+  }
+
+  function onMouseDown() {
+    if(!usingPhone) {
+      controls.enabled = true; // Turns on camera rotating with mouse
+    }
+  }
+
+  function onMouseUp() {
+    if(!usingPhone) {
+      controls.enabled = false; // Turns off camera rotating with mouse
+    }
+  }
+
+  function initVRControls() {
+    cameraOrtho2 = new THREE.Vector3();
+
+    cameraOrtho2.y = 2000;
+
+    var loader = new THREE.SVGLoader();
+
+    [
+      'models/svg/up2.svg',
+      'models/svg/down2.svg',
+      'models/svg/sleft2.svg',
+      'models/svg/sright2.svg',
+      'models/svg/left2.svg',
+      'models/svg/right2.svg',
+      'models/svg/recenter2.svg',
+      'models/svg/up1.svg',
+      'models/svg/down1.svg',
+      'models/svg/sleft1.svg',
+      'models/svg/sright1.svg',
+      'models/svg/left1.svg',
+      'models/svg/right1.svg',
+      'models/svg/recenter1.svg',
+    ].
+    forEach((currentValue, index) => {
+      loader.load(currentValue, svgCallback.bind(null, index));
+    });
+  }
+
+  function svgCallback(objectNumber, paths) {
+    var group = new THREE.Group();
+
+    group.rotation.x = minusHalfPi;
+    group.scale.set(0.1, -0.1, 0.1);
+
+    for(var i = 0; i < paths.length; i++) {
+      var path = paths[i];
+
+      var material = new THREE.MeshBasicMaterial({
+          color: path.color,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          depthTest: false,//objectNumber >6,
+          transparent: true,
+          opacity: objectNumber > 6 ? 0.15 : 0
+        });
+
+      var shapes = path.toShapes(true);
+
+      for(var j = 0; j < shapes.length; j++) {
+        var shape = shapes[j];
+
+        var geometry = new THREE.ShapeBufferGeometry(shape);
+        var mesh = new THREE.Mesh(geometry, material);
+
+        group.add(mesh);
+      }
+    }
+
+    group.name = objectNumber;
+
+    arrowObjs[objectNumber] = group;
+
+    if(objectNumber < 7) {
+      selectableObjs[objectNumber] = group;
+    }
+
+    scene.add(group);
+  }
+
+  function initSimpleSkybox() {
+    // define path and box sides images
+    var path = 'skybox/';
+
+    // load images
+    var skyCube = THREE.ImageUtils.loadTextureCube([
+        path + 'sbox_px.jpg',
+        path + 'sbox_nx.jpg',
+        path + 'sbox_py.jpg',
+        path + 'sbox_ny.jpg',
+        path + 'sbox_pz.jpg',
+        path + 'sbox_nz.jpg'
+      ]);
+    skyCube.format = THREE.RGBFormat;
+
+    // prepare skybox material (shader)
+    var skyShader = THREE.ShaderLib["cube"];
+
+    skyShader.uniforms["tCube"].value = skyCube;
+
+    var skyMaterial = new THREE.ShaderMaterial( {
+        fragmentShader: skyShader.fragmentShader,
+        vertexShader: skyShader.vertexShader,
+        uniforms: skyShader.uniforms,
+        depthWrite: false,
+        side: THREE.BackSide
+      });
+
+    // create Mesh with cube geometry and add to the scene
+    skyBox = new THREE.Mesh(new THREE.BoxGeometry(12000, 12000, 12000), skyMaterial);
+    skyMaterial.needsUpdate = true;
+
+    skyBox.UserData = {
+        name:"skyBox"
+      };
+
+    scene.add(skyBox);
+  }
+
+  function reCenter1() {
+    recenterState = 2;
+
+    Array.prototype.forEach.call(document.getElementsByClassName('other-ball'), item => {
+      item.style.backgroundColor = '#000000';
+    });
+
+    recenterTimeout = setTimeout(reCenter2, 4000);
+  }
+
+  function reCenter2() {
+    if(!usingPhone) {
+      dangle = controls.getObject().rotation.y;
+    }
+    else {
+      var rotation = foobar + dangle;
+      var rotation2 = minusZed
+          .clone()
+          .applyQuaternion(yawObject.quaternion.conjugate())
+          .applyAxisAngle(up, rotation);
+
+      rotation2.y = 0;
+
+      dangle = minusZed.angleTo(rotation2);
+
+      if (camera.rotation.y < 0) {
+        dangle *= -1;
+      }
+
+      foobar = rotation-dangle;
+    }
+
+    Array.prototype.forEach.call(document.getElementsByClassName('other-ball'), item => {
+      item.style.backgroundColor = '#ffffff';
+    });
+
+    recenterState = 0;
+  }
+
+  function hasClass(el, className) {
+    return el.classList ?
+      el.classList.contains(className):
+      new RegExp('(^| )' + className + '( |$)', 'gi').test(el.className);
+  }
+
+  function addClass(el, className) {
+    if(el.classList) {
+      el.classList.add(className);
+    }
+    else {
+      el.className += ' ' + className;
+    }
+  }
+
+  function removeClass(el, className) {
+    if(el.classList) {
+      el.classList.remove(className);
+    }
+    else {
+      el.className = el.className.replace(new RegExp('(^|\\b)' + className.split(' ').join('|') + '(\\b|$)', 'gi'), ' ');
+    }
+  }
+
+  function getRandomColor() {
+    var letters = '0123456789ABCDEF';
+    var color = '#';
+
+    for (var i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+
+    return color;
+  }
+
+  function stringifyElementWithCss(elem) {
+    var referenceStyles = getReferenceStyles();
+    elem.style =
+      getStylesWithoutDefaults(elem, referenceStyles) +
+      "transform: scale(4); transform-origin: top left;";
+
+    var elements = document.querySelectorAll('#testDialog *');
+    Array.prototype.forEach.call(elements, function(el, i){
+      el.style = getStylesWithoutDefaults(el, referenceStyles);
+    });
+
+    var oSerializer = new XMLSerializer();
+    var retval = oSerializer.serializeToString(elem);
+
+    Array.prototype.forEach.call(elements, function(el, i){
+      el.removeAttribute("style");
+    });
+
+    elem.removeAttribute("style");
+
+    return retval;
+  }
+
+  function getReferenceStyles() {
+    // creating an empty dummy object to compare with
+    var dummy = document.createElement('element-' + (new Date().getTime()));
+    document.body.appendChild(dummy);
+
+    var defaultStyles = getComputedStyle(dummy);
+    var retval = {};
+
+    for(var key in defaultStyles) {
+      if(defaultStyles.hasOwnProperty(key)) {
+        retval[key] = ''+defaultStyles[key];
+      }
+    }
+
+    // clear dom
+    dummy.remove();
+
+    return retval;
+  }
+
+
+  function getStylesWithoutDefaults(element, referenceStyles) {
+    // calculate the difference to the reference set of styles
+    var diff = "";
+
+    // getting computed styles for both elements
+    var elementStyles = getComputedStyle(element);
+
+    for(var key in elementStyles) {
+      if(
+        elementStyles.hasOwnProperty(key) &&
+        referenceStyles[key] != elementStyles[key]
+      ) {
+        diff += key.replace(/[A-Z]/, match => "-" + match.toLowerCase()) + ':' + elementStyles[key] + ';';
+      }
+    }
+
+    return diff;
+  }
+
+  function findFirstMatch(rects, x, y) {
+    for(var i = rects.length -1; i > -1; i--) {
+      var a = rects[i];
+
+      if(!(
+        y < a.top ||
+        y > a.bottom ||
+        x > a.right ||
+        x < a.left
+      )) {
+        return a;
+      }
+    }
+
+    return null;
+  }
+
+  function populateCanvasWithElem(canvasId, elem, width, height) {
+    return new Promise(resolve => {
+      var
+        data,
+        ctx,
+        img,
+        scale = 4,
+        intWidth = nextHighestPow2(width*scale),
+        intHeight = nextHighestPow2(height*scale),
+
+        canvas = document.getElementById(canvasId);
+
+      canvas.setAttribute("width", intWidth);
+      canvas.setAttribute("height", intHeight);
+      canvas.style = "position:absolute;top:0;left:0;opacity:0;pointer-events:none";
+      ctx = canvas.getContext("2d");
+
+      data = '<svg xmlns="http://www.w3.org/2000/svg" width="'+
+        intWidth +
+        '" height="' +
+        intHeight +
+        '">' +
+        '<foreignObject width="100%" height="100%">' +
+          stringifyElementWithCss(elem) +
+        '</foreignObject>' +
+        '</svg>';
+
+      data = encodeURIComponent(data);
+
+      img = new Image();
+
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas);
+      };
+
+      img.src = "data:image/svg+xml," + data;
+    });
+  }
+
+  function nextHighestPow2(x) {
+    return Math.pow(2, Math.ceil(Math.log(x)/Math.log(2)));
+  }
+
+  function intToColour(x) {
+    return '#' + ('000000' + (x*10).toString(16).toUpperCase()).substr(-6);
+  }
+
+  function addReticule() {
+    var quad_vertices = [
+      -1, -1, 0,
+      -1, 1, 0,
+      1, 1, 0,
+      1, -1, 0
+    ];
+
+    var quad_uvs = [
+      0, 0,
+      0, 1,
+      1, 1,
+      1, 0
+    ];
+
+    var quad_indices = [
+      0, 2, 1, 0, 3, 2
+    ];
+
+    var geometry = new THREE.BufferGeometry();
+
+    var vertices = new Float32Array(quad_vertices);
+    var uvs = new Float32Array(quad_uvs);
+    var indices = new Uint32Array(quad_indices);
+
+    geometry.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    geometry.addAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+
+    reticuleAngle = [0.0];
+
+    var material = new THREE.ShaderMaterial({
+        side: THREE.DoubleSide,
+        depthTest:false,
+        transparent: true,
+        uniforms: {
+          reticuleAngle: {
+            type: 'f1v',
+            value: reticuleAngle
+          }
+        },
+        vertexShader: getVertexShader(),
+        fragmentShader: getReticuleFragmentShader()
+      });
+
+    reticule = new THREE.Mesh(
+        geometry,
+        material
+      );
+
+    reticule.renderOrder = 999;
+    reticule.onBeforeRender = function(renderer) {
+      renderer.clearDepth();
+    };
+
+
+    reticule.position.set(-3, 3, -8);
+    reticule.lookAt(camera.position)
+    reticule.scale.set(0.1, 0.1, 0.1);
+
+    scene.add(reticule);
+  }
+
+  function addDialog(markup) {
+    var elem = document.getElementById('testDialog');
+    elem = elem.getBoundingClientRect();
+
+    var width = elem.width;
+    var height = elem.height;
+
+    elem = document.querySelectorAll('#testDialog .button');
+
+    elem.forEach(function(item) {
+      var a = item.getBoundingClientRect();
+      item.style = "position:relative;left:-"+(a.x+(a.width/2))+"px;top:-"+(a.y + (a.height/2))+"px;";
+    });
+
+    for(var i = elem.length - 1, elem = []; i > -1; i--) {
+      var b = document.elementFromPoint(0, 0);
+      var c = b;
+
+      while(!hasClass(c, 'button') && c.parentNode) {
+        c = c.parentNode;
+      }
+
+      if(!c.parentNode) {
+        continue;
+      }
+
+      c.style.pointerEvents = "none";
+      elem.unshift(c);
+    }
+
+    var colourMask = document.getElementById("canvas2");
+    colourMask.setAttribute("width", nextHighestPow2(width));
+    colourMask.setAttribute("height", nextHighestPow2(height));
+    colourMask.style="position:absolute;top:0;right:0";
+    var colourMaskCtx = colourMask.getContext("2d");
+
+    colourMaskCtx.fillStyle= '#FFFFFF';
+    colourMaskCtx.fillRect(0, 0, nextHighestPow2(width), nextHighestPow2(height));
+
+    dwidth = width;
+    dheight = height;
+
+    elem.forEach((item, index, arr) => {
+      item.removeAttribute("style");
+
+      colourMaskCtx.fillStyle = intToColour(index);
+      var a = item.getBoundingClientRect();
+
+      a = {
+        top: Math.round(a.top),
+        left: Math.round(a.left),
+        bottom: Math.round(a.bottom),
+        right: Math.round(a.right),
+        zOrder: index
+      }
+
+      colourMaskCtx.fillRect(
+        a.left,
+        a.top,
+        a.right - a.left,
+        a.bottom - a.top
+      );
+
+      arr[index] = a;
+    });
+
+    elemss = elem;
+
+  var canvases = [];
+  var testDialog = document.getElementById('testDialog');
+
+  canvases.push(populateCanvasWithElem('canvas3', testDialog, width, height));
+
+  addClass(testDialog, 'hover');
+
+  canvases.push(populateCanvasWithElem('canvas4', testDialog, width, height));
+
+  removeClass(testDialog, 'hover');
+  addClass(testDialog, 'active');
+
+  canvases.push(populateCanvasWithElem('canvas5', testDialog, width, height));
+
+  testDialog.style.display = 'none';
+
+  Promise.
+    all(canvases).
+    then(canvases => {
+      var quad_vertices = [
+        -width/240,  -height/240, 0,
+        -width/240,  height/240, 0,
+        width/240, height/240, 0,
+        width/240, -height/240, 0
+      ];
+
+      xthing = width/nextHighestPow2(width);
+      ything = height/nextHighestPow2(height);
+
+      var quad_uvs = [
+        0, 1-ything,
+        0,1,
+        xthing, 1,
+        xthing,1-ything
+      ];
+
+      var quad_indices = [
+        0, 2, 1, 0, 3, 2
+      ];
+
+      var geometry = new THREE.BufferGeometry();
+
+      var vertices = new Float32Array(quad_vertices);
+      var uvs = new Float32Array(quad_uvs);
+      var indices = new Uint32Array(quad_indices);
+
+      geometry.addAttribute('position', new THREE.BufferAttribute(vertices, 3));
+      geometry.addAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+
+      var colourTexture = new THREE.CanvasTexture(colourMask);
+				colourTexture.magFilter = THREE.NearestFilter;
+				colourTexture.minFilter = THREE.NearestFilter;
+        colourTexture.generateMipmaps = false;
+
+      colourMask.style.display = 'none';
+
+      material = new THREE.ShaderMaterial({
+        transparent:true,
+        uniforms: {
+          colourMask: {
+            type: '',
+            value: new THREE.CanvasTexture(colourMask)
+          },
+          defaultTexture: {
+            type: '',
+            value: new THREE.CanvasTexture(canvases[0])
+          },
+          hoverTexture: {
+            type: '',
+            value: new THREE.CanvasTexture(canvases[1])
+          },
+          activeTexture: {
+            type: '',
+            value: new THREE.CanvasTexture(canvases[2])
+          },
+          opacities: {
+            type: 'f1v',
+            value: opacityUniforms
+          },
+          active: {
+            type: 'i1v',
+            value: [0, 0]
+          }
+        },
+        vertexShader: getVertexShader(),
+        fragmentShader: getFragmentShader(opacityUniforms.length)
+      });
+
+      dialog1 = new THREE.Mesh(
+          geometry,
+          material
+        );
+
+      dialog1.position.set(-3, 3, -8);
+      dialog1.lookAt(camera.position)
+      dialog1.scale.set(1, 1, 1);
+
+      scene.add(dialog1);
+     });
+  }
+
+  init();
+  animate();
+
+})();
+</script>
+</body>
+</html>
